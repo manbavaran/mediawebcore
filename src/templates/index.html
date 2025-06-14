@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam Streaming Demo</title>
+</head>
+<body>
+    <h2>웹캠 송신 테스트</h2>
+    <video id="video" width="320" height="240" autoplay></video>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+    const video = document.getElementById('video');
+    const socket = io();
+
+    // 웹캠 가져오기
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then((stream) => {
+            video.srcObject = stream;
+            // 프레임마다 서버로 이미지 송신
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 320;
+            canvas.height = 240;
+
+            setInterval(() => {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.6); // 압축률 0.6
+                socket.emit('frame', dataURL);
+            }, 100); // 100ms = 10fps
+        })
+        .catch((err) => {
+            alert('웹캠 사용 불가: ' + err);
+        });
+
+    
+    // 클라이언트 JS (index.html 등)
+    socket.on('result_frame', function(resultData) {
+        // resultData: 서버가 보낸 이미지(base64)
+        // 이미지를 캔버스/이미지 태그 등에 표시
+        let img = document.getElementById('result_img');
+        if (!img) {
+            img = document.createElement('img');
+            img.id = 'result_img';
+            document.body.appendChild(img);
+        }
+        img.src = resultData;
+    });
+
+    </script>
+</body>
+</html>
