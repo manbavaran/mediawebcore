@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from io import BytesIO
 from PIL import Image
+import time
 
 eventlet.monkey_patch()
 app = Flask(__name__)
@@ -18,6 +19,8 @@ def index():
 
 @socketio.on('frame')
 def handle_frame(data):
+    start = time.time()
+    
     # base64 to OpenCV image
     header, encoded = data.split(',', 1)
     img_bytes = base64.b64decode(encoded)
@@ -32,6 +35,8 @@ def handle_frame(data):
     flipped_base64 = base64.b64encode(buffer).decode('utf-8')
     flipped_data_url = f"data:image/jpeg;base64,{flipped_base64}"
     
+    end = time.time()
+    print("프레임 처리 소요:", end-start, "초")
     
     # 3. 클라로 송신 (result_frame 이벤트)
     socketio.emit('result_frame', flipped_data_url)
