@@ -1,4 +1,13 @@
 include README.md
 include LICENSE
-recursive-include mediawebcore/templates *
-recursive-include mediawebcore/static *
+include pyproject.toml
+include requirements.txt
+
+# include type hint declaration
+include src/mediawebcore/py.typed
+
+# include templates for HTML UI
+recursive-include src/mediawebcore/templates *
+
+# include static files if you add them later
+recursive-include src/mediawebcore/static *
