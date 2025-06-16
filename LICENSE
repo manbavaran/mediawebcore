@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 [manbavaran]
+Copyright (c) 2025 manbavaran
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -8,7 +8,6 @@ in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,10 +25,17 @@ This project uses the following third-party libraries:
 
 - Flask (BSD-3-Clause License): https://palletsprojects.com/p/flask/
 - Flask-SocketIO (MIT License): https://flask-socketio.readthedocs.io/
-- OpenCV (cv2, Apache License 2.0): https://opencv.org/
+- OpenCV (Apache License 2.0): https://opencv.org/
 - NumPy (BSD License): https://numpy.org/
 - Eventlet (MIT License): https://eventlet.net/
-- Python Standard Library (base64, os, etc.): PSF License
 - setuptools (PSF License): https://setuptools.pypa.io/
+- Python Standard Library (base64, os, etc.): PSF License
 
-Each of these libraries is used in compliance with their respective licenses.
+The software optionally integrates with external tools such as:
+
+- **ngrok** (Commercial SaaS): https://ngrok.com/
+- **Nginx** (BSD-like License): https://nginx.org/
+
+These tools are not distributed or bundled with this project and must be installed and used in accordance with their respective licenses.
+
+Each of the above libraries and tools is used in compliance with their open-source or free-to-use terms.

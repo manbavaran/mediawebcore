@@ -1,13 +1,13 @@
-# 파일: pyproject.toml
+# pyproject.toml
 [project]
 name = "mediawebcore"
 version = "0.1.0"
-description = "Web-based real-time webcam streaming server for virtual piano and other apps"
+description = "Web-based real-time webcam streaming server for virtual piano and other visual apps"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-  {name = "Your Name", email = "you@example.com"}
+  {name = "manbavaran", email = "you@example.com"}
 ]
 dependencies = [
   "flask",
@@ -16,6 +16,10 @@ dependencies = [
   "opencv-python",
   "numpy"
 ]
+
+[project.urls]
+Homepage = "https://github.com/yourname/mediawebcore"
+Documentation = "https://github.com/yourname/mediawebcore/wiki"
 
 [project.scripts]
 mediawebcore = "mediawebcore.cli:main"
