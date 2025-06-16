@@ -1,6 +1,6 @@
 # 파일: mediawebcore/core.py
 from flask import Flask, render_template
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO,emit
 import base64
 import cv2
 import numpy as np
@@ -66,23 +66,31 @@ def run_server(
             layout=layout,
         )
 
-    @socketio.on('frame')
-    def handle_frame(data):
+    
+    @socketio.on("frame_blob")
+    def handle_frame_blob(data):
         try:
-            header, encoded = data.split(',', 1)
-            img_bytes = base64.b64decode(encoded)
-            img_array = np.frombuffer(img_bytes, dtype=np.uint8)
-            frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            # ▶️ 바이너리 blob → NumPy 배열 (이미지 디코딩)
+            np_arr = np.frombuffer(data, dtype=np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
             if frame is None:
-                raise ValueError("cv2.imdecode failed")
+                print("⚠️ 이미지 디코딩 실패")
+                return
 
-            result_frame = on_frame(frame) if on_frame else frame
+            # ✅ 처리: 여기서 frame을 원하는 방식으로 분석/변형 가능
+            result_frame = frame  # 예시: 그대로 되돌려줌
 
-            _, buffer = cv2.imencode('.jpg', result_frame)
-            out_base64 = base64.b64encode(buffer).decode('utf-8')
-            out_data_url = f"data:image/jpeg;base64,{out_base64}"
-            socketio.emit('result_frame', out_data_url)
+            # ⏺️ 결과 프레임 → JPEG 인코딩
+            success, buffer = cv2.imencode(".jpg", result_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if not success:
+                print("⚠️ JPEG 인코딩 실패")
+                return
+
+            # 🔁 클라이언트로 이진 blob 전송
+            emit("result_frame_blob", buffer.tobytes(), binary=True)
+
         except Exception as e:
-            logger.warning(f"Frame handling error: {e}")
+            print(f"❌ 처리 중 오류 발생: {e}")
 
     socketio.run(app, host=host, port=port, debug=True)

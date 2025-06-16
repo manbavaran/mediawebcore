@@ -6,7 +6,12 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         body { margin: 0; background: #111; color: #eee; font-family: sans-serif; }
-        #video, #result_img { display: block; margin: 10px auto; border: 1px solid #333; }
+        #video, #result_canvas {
+            display: block;
+            margin: 10px auto;
+            border: 1px solid #333;
+            background: black;
+        }
     </style>
 </head>
 <body>
@@ -23,36 +28,50 @@
     {% endif %}
 
     {% if output_width and output_height %}
-    <img id="result_img"
+    <canvas id="result_canvas"
         {% if output_width[-1] == '%' %}
             style="width:{{ output_width }}; height:auto;"
         {% else %}
             width="{{ output_width }}" height="{{ output_height }}"
-        {% endif %} />
+        {% endif %}></canvas>
     {% endif %}
 
     <script>
     const socket = io({ transports: ['websocket'] });
     const video = document.getElementById('video');
-    const result_img = document.getElementById('result_img');
+    const canvas = document.getElementById('result_canvas');
+    const ctx = canvas.getContext('2d');
 
     navigator.mediaDevices.getUserMedia({video: true, audio: false})
         .then(function(s) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            const sendCanvas = document.createElement('canvas');
+            const sendCtx = sendCanvas.getContext('2d');
             video.srcObject = s;
 
             setInterval(() => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.3);  // ✅ 속도 개선
-                socket.emit('frame', dataUrl);
-            }, 300);  // ✅ 안정적 전송 주기
+                sendCanvas.width = video.videoWidth;
+                sendCanvas.height = video.videoHeight;
+                sendCtx.drawImage(video, 0, 0);
+                
+                sendCanvas.toBlob(function(blob) {
+                    if (blob) {
+                        socket.emit("frame_blob", blob);
+                    }
+                }, "image/jpeg", 0.4);
+            }, 200);  // 적절한 주기 (FPS 5)
         });
 
-    socket.on('result_frame', data => {
-        result_img.src = data;
+    // 🔁 Blob 결과 수신 → 이미지 렌더링
+    socket.on("result_frame_blob", function(blobData) {
+        const blob = new Blob([blobData], { type: "image/jpeg" });
+        const img = new Image();
+
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+
+        img.src = URL.createObjectURL(blob);
     });
     </script>
 </body>
