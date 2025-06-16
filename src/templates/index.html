@@ -5,40 +5,74 @@
     <title>mediawebcore Streaming</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        #video, #result_img { display: block; margin: 10px auto; }
+        body { margin: 0; font-family: sans-serif; background: #111; color: #eee; }
+        #container { display: flex; flex-direction: column; height: 100vh; }
+        .row { flex-direction: row; }
+        .center { justify-content: center; align-items: center; }
+
+        .video-block {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #video, #result_img {
+            border: 2px solid #555;
+            background: #000;
+        }
+
+        #audio_status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: gray;
+            border: 1px solid #fff;
+        }
     </style>
 </head>
 <body>
-    <h2 style="text-align:center;">mediawebcore 데모</h2>
-    
-    {% if input_width is not none and input_height is not none %}
-    <!-- 클라 미리보기(내 카메라) -->
-    <video id="video"
-        {% if input_width|string.endswith('%') %}
-            style="width:{{ input_width }};height:auto;"
-        {% else %}
-            width="{{ input_width }}" height="{{ input_height }}"
+    <div id="audio_status" style="{% if not audio_receive %}display:none;{% endif %}"></div>
+    <div id="container"
+        class="{% if layout == 'left-right' %}row{% endif %} {% if layout == 'center' %}center{% endif %}">
+
+        {% if input_width is not none and input_height is not none %}
+        <div class="video-block" style="flex: 1;">
+            <video id="video"
+                {% if input_width|string.endswith('%') %}
+                    style="width:{{ input_width }}; height:auto;"
+                {% else %}
+                    width="{{ input_width }}" height="{{ input_height }}"
+                {% endif %}
+                autoplay muted></video>
+        </div>
         {% endif %}
-        autoplay muted></video>
-    {% endif %}
-    
-    {% if output_width is not none and output_height is not none %}
-    <!-- 서버가 분석 후 보내주는 결과 영상 -->
-    <img id="result_img"
-        {% if output_width|string.endswith('%') %}
-            style="width:{{ output_width }};height:auto;"
-        {% else %}
-            width="{{ output_width }}" height="{{ output_height }}"
-        {% endif %} />
-    {% endif %}
+
+        {% if output_width is not none and output_height is not none %}
+        <div class="video-block" style="flex: 1;">
+            <img id="result_img"
+                {% if output_width|string.endswith('%') %}
+                    style="width:{{ output_width }}; height:auto;"
+                {% else %}
+                    width="{{ output_width }}" height="{{ output_height }}"
+                {% endif %} />
+        </div>
+        {% endif %}
+    </div>
 
     <script>
-    // (카메라 연결/프레임 송신/수신은 input/output 여부에 따라 분기)
+    const socket = io({ transports: ['websocket'] });
+
+    socket.on('connect_error', function(err) {
+        alert("웹소켓 연결 실패: " + err.message);
+    });
+
     {% if input_width is not none and input_height is not none %}
     const video = document.getElementById('video');
-    let stream, captureInterval;
+    let stream;
 
-    navigator.mediaDevices.getUserMedia({video: true, audio: false})
+    navigator.mediaDevices.getUserMedia({video: true, audio: {{ 'true' if audio_send else 'false' }}})
         .then(function(s) {
             stream = s;
             video.srcObject = stream;
@@ -46,21 +80,40 @@
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            captureInterval = setInterval(() => {
+
+            function sendFrame() {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg');
-                socket.emit('frame', dataUrl);
-            }, 50);
+                canvas.toBlob(function(blob) {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        socket.emit('frame', reader.result);
+                    };
+                    reader.readAsDataURL(blob);
+                }, 'image/jpeg', 0.6);
+            }
+
+            setInterval(sendFrame, 50);
+        })
+        .catch(err => {
+            alert("카메라 연결 실패: " + err.message);
         });
     {% endif %}
 
-    const socket = io();
     {% if output_width is not none and output_height is not none %}
     const result_img = document.getElementById('result_img');
     socket.on('result_frame', function(resultData) {
         result_img.src = resultData;
+
+        const audioIcon = document.getElementById('audio_status');
+        if (audioIcon) {
+            audioIcon.style.backgroundColor = "limegreen";
+            clearTimeout(audioIcon._timeout);
+            audioIcon._timeout = setTimeout(() => {
+                audioIcon.style.backgroundColor = "gray";
+            }, 1000);
+        }
     });
     {% endif %}
     </script>

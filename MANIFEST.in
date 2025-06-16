@@ -1,0 +1,5 @@
+```ini
+include README.md
+include LICENSE
+recursive-include mediawebcore/templates *
+recursive-include mediawebcore/static *
