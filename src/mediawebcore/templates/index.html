@@ -5,68 +5,61 @@
     <title>Virtual Piano</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        body { margin: 0; background: #111; color: #eee; font-family: sans-serif; }
-        #video, #result_canvas {
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            height: 100%;
+            overflow: hidden;
+        }
+        canvas {
             display: block;
-            margin: 10px auto;
-            border: 1px solid #333;
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
             background: black;
         }
     </style>
 </head>
 <body>
-    <h2 style="text-align:center;">🎹 Virtual Piano Positioning</h2>
-
-    {% if input_width and input_height %}
-    <video id="video"
-        {% if input_width[-1] == '%' %}
-            style="width:{{ input_width }}; height:auto;"
-        {% else %}
-            width="{{ input_width }}" height="{{ input_height }}"
-        {% endif %}
-        autoplay muted></video>
-    {% endif %}
-
-    {% if output_width and output_height %}
-    <canvas id="result_canvas"
-        {% if output_width[-1] == '%' %}
-            style="width:{{ output_width }}; height:auto;"
-        {% else %}
-            width="{{ output_width }}" height="{{ output_height }}"
-        {% endif %}></canvas>
-    {% endif %}
+    <canvas id="result_canvas"></canvas>
 
     <script>
     const socket = io({ transports: ['websocket'] });
-    const video = document.getElementById('video');
     const canvas = document.getElementById('result_canvas');
     const ctx = canvas.getContext('2d');
 
-    navigator.mediaDevices.getUserMedia({video: true, audio: false})
-        .then(function(s) {
-            const sendCanvas = document.createElement('canvas');
-            const sendCtx = sendCanvas.getContext('2d');
-            video.srcObject = s;
+    // 해상도 축소 전송 설정
+    const SEND_WIDTH = 320;
+    const SEND_HEIGHT = 240;
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+            const video = document.createElement("video");
+            video.srcObject = stream;
+            video.play();
+
+            const offscreen = document.createElement("canvas");
+            const offCtx = offscreen.getContext("2d");
 
             setInterval(() => {
-                sendCanvas.width = video.videoWidth;
-                sendCanvas.height = video.videoHeight;
-                sendCtx.drawImage(video, 0, 0);
-                
-                sendCanvas.toBlob(function(blob) {
-                    if (blob) {
-                        socket.emit("frame_blob", blob);
-                    }
-                }, "image/jpeg", 0.4);
-            }, 200);  // 적절한 주기 (FPS 5)
+                offscreen.width = SEND_WIDTH;
+                offscreen.height = SEND_HEIGHT;
+                offCtx.drawImage(video, 0, 0, SEND_WIDTH, SEND_HEIGHT);
+
+                offscreen.toBlob(blob => {
+                    if (blob) socket.emit("frame_blob", blob);
+                }, "image/jpeg", 0.4);  // 송신 화질은 낮게 유지
+            }, 150);  // 약 6~7 FPS
         });
 
-    // 🔁 Blob 결과 수신 → 이미지 렌더링
-    socket.on("result_frame_blob", function(blobData) {
-        const blob = new Blob([blobData], { type: "image/jpeg" });
+    socket.on("result_frame_blob", blobData => {
+        const blob = new Blob([blobData], { type: "image/webp" });
         const img = new Image();
 
         img.onload = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
