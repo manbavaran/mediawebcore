@@ -5,21 +5,37 @@ Modular and plugin-ready, ideal for AI-powered visual applications such as virtu
 
 ---
 
-## 🚀 Features
+🚀 Features
+🔁 Real-time webcam streaming via WebSocket + binary Blob (high performance)
 
-- Real-time video streaming from client webcam to server (base64-encoded)
-- Input/output video size control (pixels or percentage)
-- Server-controlled audio streaming toggle (send/receive)
-- Responsive layout options: top-bottom, left-right, center, corners
-- Plugin-friendly `on_frame(frame)` callback for visual processing
-- Optional external access via Nginx or ngrok integration
-- CLI and Python API support
+🖼️ Image transmission using WebP format (smaller size, better speed)
 
----
+⬇️ Server-side resolution downscaling for reduced bandwidth
+
+⬆️ Client-side resolution upscaling to fullscreen (canvas-based)
+
+💡 Flip (mirror) view applied for natural UX alignment
+
+🖥️ Only server stream is displayed on client (no local webcam preview)
+
+🔧 Socket.IO compression disabled for reduced latency
+
+🧵 Multithreaded processing on server for responsiveness
+
+🎛️ Modular on_frame(frame) plugin architecture for custom AI/vision pipelines
+
+📐 Input/output video size control (pixels or %)
+
+🔊 Server-side audio toggle (send/receive)
+
+📐 Flexible layout options: top-bottom, left-right, center, corners
+
+🌐 External access support via Nginx or ngrok (optional)
+
+
 
 ## 🔧 Installation
 
-```bash
 git clone https://github.com/yourname/mediawebcore.git
 cd mediawebcore
 pip install .
