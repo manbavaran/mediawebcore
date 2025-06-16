@@ -1,9 +1,7 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
-import base64
 import cv2
 import numpy as np
-import threading
 import logging
 
 logger = logging.getLogger("mediawebcore")
@@ -38,7 +36,7 @@ def run_server(
 
     @socketio.on("frame_blob")
     def handle_frame_blob(data):
-        def process_frame():
+        def process_frame(data):
             try:
                 # 바이너리 blob → NumPy 배열
                 np_arr = np.frombuffer(data, dtype=np.uint8)
@@ -50,7 +48,7 @@ def run_server(
 
                 # 좌우 반전
                 frame = cv2.flip(frame, 1)
-                
+
                 # 해상도 축소 (320x240)
                 frame = cv2.resize(frame, (320, 240))
 
@@ -63,11 +61,12 @@ def run_server(
                     print("⚠️ WebP 인코딩 실패")
                     return
 
-                emit("result_frame_blob", buffer.tobytes(), binary=True)
+                # binary=True 제거 (자동 처리됨)
+                socketio.emit("result_frame_blob", buffer.tobytes())
+
             except Exception as e:
                 print(f"❌ 처리 중 오류 발생: {e}")
 
-        # 멀티스레딩으로 실행
-        threading.Thread(target=process_frame).start()
+        socketio.start_background_task(process_frame, data)
 
     socketio.run(app, host=host, port=port, debug=True)
