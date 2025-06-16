@@ -1,18 +1,11 @@
+<!-- mediawebcore/templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Webcam Streaming Demo</title>
+    <title>mediawebcore Streaming</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        #audio-indicator {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #aaa;
-            margin: 10px auto;
-            transition: background 0.2s
-        }
         #video, #result_img {
             display: block;
             margin: 10px auto;
@@ -20,74 +13,53 @@
     </style>
 </head>
 <body>
-    <h2 style = "text-alighn:center;">media & sound sending and receiving</h2>
-    <video id="video" width="320" height="240" autoplay muted></video>
-    <img id="result_img" width="320" height="240"/>
-    <div id="audio-indicator"></div>
-
+    <h2 style="text-align:center;">mediawebcore 데모</h2>
+    <video id="video"
+        {% if width|string.endswith('%') %}
+            style="width:{{ width }};height:auto;"
+        {% else %}
+            width="{{ width }}" height="{{ height }}"
+        {% endif %}
+        autoplay muted></video>
+    <img id="result_img"
+        {% if width|string.endswith('%') %}
+            style="width:{{ width }};height:auto;"
+        {% else %}
+            width="{{ width }}" height="{{ height }}"
+        {% endif %}
+    />
     <script>
-    // UI 관련 DOM 변수
+    // 카메라 연결, 프레임 캡처/전송, 수신 이미지 표시
     const video = document.getElementById('video');
-    const img = document.getElementById('result_img');
-    const audioIndicator = document.getElementById('audio-indicator');
-    let audioTimeout = null;
+    const result_img = document.getElementById('result_img');
+    let stream, captureInterval;
 
-    // 소켓 연결
+    // 서버 연결
     const socket = io();
 
-    // 영상 송수신 - ACK 구조
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then((stream) => {
+    // 카메라 스트림 시작
+    navigator.mediaDevices.getUserMedia({video: true, audio: false})
+        .then(function(s) {
+            stream = s;
             video.srcObject = stream;
-            // 프레임마다 서버로 이미지 송신
+            video.play();
+
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = 320;
-            canvas.height = 240;
 
-            let readyToSend = true; // 동기송신 플래그
-
-            function sendFrame() {
-                if (!readyToSend) return;
+            captureInterval = setInterval(() => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataURL = canvas.toDataURL('image/jpeg', 0.6);
-                readyToSend = false;
-                socket.emit('frame', dataURL);
-            }
-
-
-            // 서버에서 피드백 프레임 (ACK) 수신
-            socket.on('result_frame', function(resultData) {
-                img.src = resultData;
-                readyToSend = true; // 다음 프레임 전송 허용
-                sendFrame(); // 다음 프레임 송신 (ACK)
-            });
-
-            // 최초 한 번만 시작
-            sendFrame();
-
-        })
-        .catch((err) => {
-            alert('웹캠 사용 불가: ' + err);
-
-        
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                socket.emit('frame', dataUrl);
+            }, 50); // 20fps
         });
 
-    
-    // 오디오 수신 indicator (임시 디버깅)
-    socket.on('audio_chunk', function(data) {
-        audioIndicator.style.background = "#0f0"; // 초록색 ON
-        if (audioTimeout) clearTimeout(audioTimeout);
-        audioTimeout = setTimeout(() => {
-            audioIndicator.style.background = "#aaa"; // 회색 OFF
-        }, 200);
-        
+    // 처리 결과 프레임 수신
+    socket.on('result_frame', function(resultData) {
+        result_img.src = resultData;
     });
-
-    // 실제 오디오 송수신 붙일때
-    // 추가로 미디어 레코더, 오디오 재생 코드 필요
-
     </script>
-
 </body>
 </html>
