@@ -1,4 +1,3 @@
-<!-- mediawebcore/templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,38 +5,39 @@
     <title>mediawebcore Streaming</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        #video, #result_img {
-            display: block;
-            margin: 10px auto;
-        }
+        #video, #result_img { display: block; margin: 10px auto; }
     </style>
 </head>
 <body>
     <h2 style="text-align:center;">mediawebcore 데모</h2>
+    
+    {% if input_width is not none and input_height is not none %}
+    <!-- 클라 미리보기(내 카메라) -->
     <video id="video"
-        {% if width|string.endswith('%') %}
-            style="width:{{ width }};height:auto;"
+        {% if input_width|string.endswith('%') %}
+            style="width:{{ input_width }};height:auto;"
         {% else %}
-            width="{{ width }}" height="{{ height }}"
+            width="{{ input_width }}" height="{{ input_height }}"
         {% endif %}
         autoplay muted></video>
+    {% endif %}
+    
+    {% if output_width is not none and output_height is not none %}
+    <!-- 서버가 분석 후 보내주는 결과 영상 -->
     <img id="result_img"
-        {% if width|string.endswith('%') %}
-            style="width:{{ width }};height:auto;"
+        {% if output_width|string.endswith('%') %}
+            style="width:{{ output_width }};height:auto;"
         {% else %}
-            width="{{ width }}" height="{{ height }}"
-        {% endif %}
-    />
+            width="{{ output_width }}" height="{{ output_height }}"
+        {% endif %} />
+    {% endif %}
+
     <script>
-    // 카메라 연결, 프레임 캡처/전송, 수신 이미지 표시
+    // (카메라 연결/프레임 송신/수신은 input/output 여부에 따라 분기)
+    {% if input_width is not none and input_height is not none %}
     const video = document.getElementById('video');
-    const result_img = document.getElementById('result_img');
     let stream, captureInterval;
 
-    // 서버 연결
-    const socket = io();
-
-    // 카메라 스트림 시작
     navigator.mediaDevices.getUserMedia({video: true, audio: false})
         .then(function(s) {
             stream = s;
@@ -46,20 +46,23 @@
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-
             captureInterval = setInterval(() => {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const dataUrl = canvas.toDataURL('image/jpeg');
                 socket.emit('frame', dataUrl);
-            }, 50); // 20fps
+            }, 50);
         });
+    {% endif %}
 
-    // 처리 결과 프레임 수신
+    const socket = io();
+    {% if output_width is not none and output_height is not none %}
+    const result_img = document.getElementById('result_img');
     socket.on('result_frame', function(resultData) {
         result_img.src = resultData;
     });
+    {% endif %}
     </script>
 </body>
 </html>

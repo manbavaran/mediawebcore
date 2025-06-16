@@ -4,15 +4,11 @@ import base64
 import cv2
 import numpy as np
 import eventlet
-import os
 
 eventlet.monkey_patch()
 
 def _clean_percent_str(val):
-    """
-    % 문자열일 경우: 앞뒤/중간 공백 제거, 'N%' 또는 'NN%' 등
-    1~100% 만 허용, 아니면 None 반환
-    """
+    """퍼센트 문자열(1~100%)만 허용, 아니면 None"""
     if isinstance(val, str):
         val = val.strip().replace(' ', '')
         if val.endswith('%') and val[:-1].isdigit():
@@ -26,25 +22,31 @@ def run_server(
     port=5000,
     template="index.html",
     on_frame=None,
-    video_size=[320, 240]  # [가로, 세로] (정수 픽셀 or 'NN%' 문자, 1~100%만 허용)
+    video_size_input=None,    # 예: [320, 240] 또는 ["80%", "60%"] (없으면 미리보기 X)
+    video_size_output=None,   # 예: [320, 240] 또는 ["100%", "80%"] (없으면 결과 영상 X)
+    audio_send=False,
+    audio_receive=True,
 ):
-    # 1. video_size 유효성 검사/정리
-    assert isinstance(video_size, (list, tuple)) and len(video_size) == 2, \
-        "video_size는 [가로, 세로] 리스트/튜플이어야 함!"
-    width, height = video_size
-    for v in [width, height]:
-        if isinstance(v, int):
-            continue
-        elif isinstance(v, str):
-            cleaned = _clean_percent_str(v)
-            if not cleaned:
-                raise ValueError("video_size 각 값은 정수(픽셀) 또는 1~100%의 'NN%' 형식만 허용합니다!")
-        else:
-            raise ValueError("video_size 각 값은 정수(픽셀) 또는 1~100%의 'NN%' 형식만 허용합니다!")
-    width = _clean_percent_str(width) if isinstance(width, str) else width
-    height = _clean_percent_str(height) if isinstance(height, str) else height
+    # video_size_input/ video_size_output: [가로, 세로] (정수 또는 'NN%')
+    def _check_size(sz):
+        if sz is None:
+            return (None, None)
+        assert isinstance(sz, (list, tuple)) and len(sz) == 2
+        w, h = sz
+        for v in (w, h):
+            if isinstance(v, int):
+                continue
+            elif isinstance(v, str) and _clean_percent_str(v):
+                continue
+            else:
+                raise ValueError("비디오 사이즈는 정수 또는 1~100% 'NN%'만 허용")
+        w = _clean_percent_str(w) if isinstance(w, str) else w
+        h = _clean_percent_str(h) if isinstance(h, str) else h
+        return w, h
 
-    # 2. Flask/SocketIO 인스턴스 생성
+    input_width, input_height = _check_size(video_size_input)
+    output_width, output_height = _check_size(video_size_output)
+
     app = Flask(__name__, template_folder="templates")
     socketio = SocketIO(app, cors_allowed_origins='*')
 
@@ -52,25 +54,26 @@ def run_server(
     def index():
         return render_template(
             template,
-            width=width,
-            height=height
+            input_width=input_width,
+            input_height=input_height,
+            output_width=output_width,
+            output_height=output_height,
+            audio_send=audio_send,
+            audio_receive=audio_receive,
         )
 
     @socketio.on('frame')
     def handle_frame(data):
-        # base64 → OpenCV 이미지
         header, encoded = data.split(',', 1)
         img_bytes = base64.b64decode(encoded)
         img_array = np.frombuffer(img_bytes, dtype=np.uint8)
         frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
-        # 서비스 콜백 있으면 분석/가공 (예: 손 추적, 좌우반전 등)
         if on_frame:
             result_frame = on_frame(frame)
         else:
             result_frame = frame
 
-        # 결과 프레임 → base64 변환/전송
         _, buffer = cv2.imencode('.jpg', result_frame)
         out_base64 = base64.b64encode(buffer).decode('utf-8')
         out_data_url = f"data:image/jpeg;base64,{out_base64}"
