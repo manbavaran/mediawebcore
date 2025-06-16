@@ -50,13 +50,13 @@ def run_server(
                 frame = cv2.flip(frame, 1)
 
                 # 해상도 축소 (320x240)
-                frame = cv2.resize(frame, (320, 240))
+                frame = cv2.resize(frame, (480, 360))
 
                 # 처리 로직 (원본 그대로 사용)
                 result_frame = frame
 
                 # WebP 인코딩
-                success, buffer = cv2.imencode(".webp", result_frame, [cv2.IMWRITE_WEBP_QUALITY, 50])
+                success, buffer = cv2.imencode(".webp", result_frame, [cv2.IMWRITE_WEBP_QUALITY, 70])
                 if not success:
                     print("⚠️ WebP 인코딩 실패")
                     return

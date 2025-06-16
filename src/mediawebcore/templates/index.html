@@ -50,7 +50,7 @@
                 offscreen.toBlob(blob => {
                     if (blob) socket.emit("frame_blob", blob);
                 }, "image/jpeg", 0.4);  // 송신 화질은 낮게 유지
-            }, 150);  // 약 6~7 FPS
+            }, 20);  // 약 6~7 FPS
         });
 
     socket.on("result_frame_blob", blobData => {
@@ -61,6 +61,10 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 이미지 확대 시 품질 개선 설정
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high"; // or "medium"
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
 
