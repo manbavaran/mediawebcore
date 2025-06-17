@@ -78,14 +78,22 @@ def run_server(
                 frame = cv2.flip(frame, 1)
                 frame = cv2.resize(frame, (480, 360))
 
-                processed = on_frame(frame) if on_frame else frame
+                # 플러그인 처리: (frame, crop_rect) 반환
+                if on_frame:
+                    result_frame, crop_rect = on_frame(frame)
+                    if crop_rect:
+                        x, y, w, h = crop_rect
+                        result_frame = result_frame[y:y+h, x:x+w]
+                else:
+                    result_frame = frame
 
-                success, buffer = cv2.imencode(".webp", processed, [cv2.IMWRITE_WEBP_QUALITY, 70])
+                success, buffer = cv2.imencode(".webp", result_frame, [cv2.IMWRITE_WEBP_QUALITY, 70])
                 if not success:
                     print("⚠️ WebP 인코딩 실패")
                     return
 
                 socketio.emit("result_frame_blob", buffer.tobytes())
+
             except Exception as e:
                 print(f"❌ 처리 중 오류 발생: {e}")
 

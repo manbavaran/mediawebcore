@@ -23,14 +23,17 @@
         const canvas = document.getElementById('result_canvas');
         const ctx = canvas.getContext('2d');
 
+        // 전체 해상도 기준
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        // 고화질 업스케일링
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        navigator.mediaDevices.getUserMedia({video: true, audio: false})
-        .then(function(s) {
+        // 카메라에서 영상 캡처
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(function (s) {
             const video = document.createElement('video');
             video.srcObject = s;
             video.play();
@@ -42,7 +45,8 @@
                 sendCanvas.width = 320;
                 sendCanvas.height = 240;
                 sendCtx.drawImage(video, 0, 0, 320, 240);
-                sendCanvas.toBlob(function(blob) {
+
+                sendCanvas.toBlob(function (blob) {
                     if (blob) {
                         socket.emit("frame_blob", blob);
                     }
@@ -50,15 +54,43 @@
             }, 200);
         });
 
-        socket.on("result_frame_blob", function(blobData) {
+        /**
+        * 📦 수신된 프레임 처리
+        * 서버가 `{ frame_blob: ..., meta: { cropped: true, layout: 'bottom' } }` 형태로 전송했다고 가정
+        */
+        socket.on("result_frame_blob", function (data) {
+            let blobData = data;
+            let layout = "full";
+
+            // 플러그인이 메타 정보를 같이 보내는 경우
+            if (data && data.hasOwnProperty('frame_blob') && data.hasOwnProperty('meta')) {
+                blobData = data.frame_blob;
+                layout = data.meta.layout || "full";  // 'full' or 'bottom'
+            }
+
             const blob = new Blob([blobData], { type: "image/webp" });
             const img = new Image();
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                let targetW = canvas.width;
+                let targetH = canvas.height;
+
+                if (layout === "bottom") {
+                    // 비율 유지하며 화면 아래에 렌더링
+                    targetH = canvas.height * 0.3;
+                    targetW = img.width / img.height * targetH;
+                    const x = (canvas.width - targetW) / 2;
+                    const y = canvas.height - targetH;
+                    ctx.drawImage(img, x, y, targetW, targetH);
+                } else {
+                    // 전체 화면
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                }
             };
             img.src = URL.createObjectURL(blob);
         });
     </script>
+
 </body>
 </html>
