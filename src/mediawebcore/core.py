@@ -78,14 +78,20 @@ def run_server(
                 frame = cv2.flip(frame, 1)
                 frame = cv2.resize(frame, (480, 360))
 
-                # 플러그인 처리: (frame, crop_rect) 반환
                 if on_frame:
                     result_frame, crop_rect = on_frame(frame)
                     if crop_rect:
                         x, y, w, h = crop_rect
                         result_frame = result_frame[y:y+h, x:x+w]
+                        socketio.emit("result_crop_flag", {"cropped": True, "height": h})
+                    else:
+                        socketio.emit("result_crop_flag", {"cropped": False})
                 else:
                     result_frame = frame
+
+                if result_frame is None or result_frame.size == 0:
+                    print("⚠️ result_frame is empty")
+                    return
 
                 success, buffer = cv2.imencode(".webp", result_frame, [cv2.IMWRITE_WEBP_QUALITY, 70])
                 if not success:
