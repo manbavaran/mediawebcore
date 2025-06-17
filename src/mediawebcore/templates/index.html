@@ -5,13 +5,7 @@
     <title>Virtual Piano</title>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            background: #000;
-            height: 100%;
-            overflow: hidden;
-        }
+        body { margin: 0; background: #111; overflow: hidden; }
         canvas {
             display: block;
             width: 100vw;
@@ -25,51 +19,46 @@
     <canvas id="result_canvas"></canvas>
 
     <script>
-    const socket = io({ transports: ['websocket'] });
-    const canvas = document.getElementById('result_canvas');
-    const ctx = canvas.getContext('2d');
+        const socket = io({ transports: ['websocket'] });
+        const canvas = document.getElementById('result_canvas');
+        const ctx = canvas.getContext('2d');
 
-    // 해상도 축소 전송 설정
-    const SEND_WIDTH = 320;
-    const SEND_HEIGHT = 240;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(stream => {
-            const video = document.createElement("video");
-            video.srcObject = stream;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        navigator.mediaDevices.getUserMedia({video: true, audio: false})
+        .then(function(s) {
+            const video = document.createElement('video');
+            video.srcObject = s;
             video.play();
 
-            const offscreen = document.createElement("canvas");
-            const offCtx = offscreen.getContext("2d");
+            const sendCanvas = document.createElement('canvas');
+            const sendCtx = sendCanvas.getContext('2d');
 
             setInterval(() => {
-                offscreen.width = SEND_WIDTH;
-                offscreen.height = SEND_HEIGHT;
-                offCtx.drawImage(video, 0, 0, SEND_WIDTH, SEND_HEIGHT);
-
-                offscreen.toBlob(blob => {
-                    if (blob) socket.emit("frame_blob", blob);
-                }, "image/jpeg", 0.4);  // 송신 화질은 낮게 유지
-            }, 20);  // 약 6~7 FPS
+                sendCanvas.width = 320;
+                sendCanvas.height = 240;
+                sendCtx.drawImage(video, 0, 0, 320, 240);
+                sendCanvas.toBlob(function(blob) {
+                    if (blob) {
+                        socket.emit("frame_blob", blob);
+                    }
+                }, "image/webp", 0.5);
+            }, 200);
         });
 
-    socket.on("result_frame_blob", blobData => {
-        const blob = new Blob([blobData], { type: "image/webp" });
-        const img = new Image();
-
-        img.onload = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 이미지 확대 시 품질 개선 설정
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high"; // or "medium"
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-
-        img.src = URL.createObjectURL(blob);
-    });
+        socket.on("result_frame_blob", function(blobData) {
+            const blob = new Blob([blobData], { type: "image/webp" });
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = URL.createObjectURL(blob);
+        });
     </script>
 </body>
 </html>
