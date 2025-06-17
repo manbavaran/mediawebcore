@@ -6,6 +6,7 @@ import numpy as np
 import eventlet
 import logging
 
+# 필수 패치 먼저
 eventlet.monkey_patch()
 logger = logging.getLogger("mediawebcore")
 logger.setLevel(logging.INFO)
@@ -44,7 +45,8 @@ def run_server(
     video_size_output=None,
     audio_send=False,
     audio_receive=True,
-    layout="top-bottom"
+    layout="top-bottom",
+    render_mode="default"
 ):
     input_width, input_height = _check_size(video_size_input)
     output_width, output_height = _check_size(video_size_output)
@@ -63,6 +65,7 @@ def run_server(
             audio_send=audio_send,
             audio_receive=audio_receive,
             layout=layout,
+            render_mode=render_mode
         )
 
     @socketio.on("frame_blob")
@@ -72,7 +75,7 @@ def run_server(
                 np_arr = np.frombuffer(data, dtype=np.uint8)
                 frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 if frame is None:
-                    print("⚠️ 이미지 디코딩 실패")
+                    print("\u26a0\ufe0f 이미지 디코딩 실패")
                     return
 
                 frame = cv2.flip(frame, 1)
@@ -80,28 +83,42 @@ def run_server(
 
                 if on_frame:
                     result_frame, crop_rect = on_frame(frame)
+                    render_info = {
+                        "render_mode": render_mode,
+                        "width": result_frame.shape[1],
+                        "height": result_frame.shape[0]
+                    }
                     if crop_rect:
                         x, y, w, h = crop_rect
                         result_frame = result_frame[y:y+h, x:x+w]
-                        socketio.emit("result_crop_flag", {"cropped": True, "height": h})
+                        render_info["cropped"] = True
                     else:
-                        socketio.emit("result_crop_flag", {"cropped": False})
+                        render_info["cropped"] = False
                 else:
                     result_frame = frame
+                    render_info = {
+                        "render_mode": render_mode,
+                        "width": result_frame.shape[1],
+                        "height": result_frame.shape[0],
+                        "cropped": False
+                    }
 
                 if result_frame is None or result_frame.size == 0:
-                    print("⚠️ result_frame is empty")
+                    print("\u26a0\ufe0f result_frame is empty")
                     return
 
                 success, buffer = cv2.imencode(".webp", result_frame, [cv2.IMWRITE_WEBP_QUALITY, 70])
                 if not success:
-                    print("⚠️ WebP 인코딩 실패")
+                    print("\u26a0\ufe0f WebP 인코딩 실패")
                     return
 
-                socketio.emit("result_frame_blob", buffer.tobytes())
+                socketio.emit("result_frame_blob", {
+                    "image": buffer.tobytes(),
+                    **render_info
+                })
 
             except Exception as e:
-                print(f"❌ 처리 중 오류 발생: {e}")
+                print(f"\u274c 처리 중 오류 발생: {e}")
 
         socketio.start_background_task(process_frame, data)
 
