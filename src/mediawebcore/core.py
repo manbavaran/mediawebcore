@@ -1,4 +1,5 @@
 # 파일: mediawebcore/core.py
+import os
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import cv2
@@ -39,6 +40,7 @@ def run_server(
     host="0.0.0.0",
     port=5000,
     template="index.html",
+    template_folder=None,    # ✨ NEW: 사용자 지정 템플릿 폴더 지원
     on_frame=None,
     video_size_input=None,
     video_size_output=None,
@@ -49,7 +51,15 @@ def run_server(
     input_width, input_height = _check_size(video_size_input)
     output_width, output_height = _check_size(video_size_output)
 
-    app = Flask(__name__, template_folder="templates")
+    # ✨ 기본값: mediawebcore/templates 폴더
+    if template_folder is None:
+        default_dir = os.path.dirname(os.path.abspath(__file__))
+        template_folder = os.path.join(default_dir, "templates")
+        logger.debug(f"템플릿 폴더 기본값 사용: {template_folder}")
+    else:
+        logger.debug(f"사용자 지정 템플릿 폴더 사용: {template_folder}")
+
+    app = Flask(__name__, template_folder=template_folder)
     socketio = SocketIO(app, cors_allowed_origins='*')
 
     @app.route("/")
@@ -95,8 +105,8 @@ def run_server(
                 socketio.emit("result_frame_blob", {
                     "image": buffer.tobytes(),
                     "cropped": crop_rect is not None,
-                    "render_mode": "bottom" if crop_rect else "default",
-                    "crop_rect": crop_rect
+                    "crop_rect": crop_rect,
+                    "render_mode": "bottom" if crop_rect else "default"
                 })
                 logger.debug("📤 result_frame_blob 전송 완료")
 

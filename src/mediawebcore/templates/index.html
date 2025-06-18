@@ -76,6 +76,10 @@
                         const dh = h * scaleY;
                         const dx = 0;
                         const dy = canvas.height - dh;
+                        
+                        // 위 빈 공간 영역(회색) 그리기
+                        ctx.fillStyle = "#444";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height - dh);
 
                         ctx.drawImage(img, x, y, w, h, dx, dy, dw, dh);
                         console.log("⬇️ 크롭 영역 하단 정렬");
